@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Screenshot Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: 1200px;
+            width: 100%;
+            min-height: 90vh;
+            margin-top: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.2em;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1em;
+            line-height: 1.4;
+        }
+
+        .status-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.monitoring {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.2);
+        }
+
+        .status-indicator.stopped {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        .status-indicator.connecting {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeeba;
+        }
+
+        .status-pulse {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        .status-pulse.stopped {
+            background: #dc3545;
+            animation: none;
+        }
+
+        .status-pulse.connecting {
+            background: #ffc107;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .question-selector {
+            text-align: center;
+            margin-bottom: 25px;
+            padding: 18px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border: 2px solid #dee2e6;
+        }
+
+        .question-selector h3 {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+
+        .question-option {
+            display: inline-block;
+            margin: 0 20px;
+            padding: 8px;
+        }
+
+        .question-option input[type="radio"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+        }
+
+        .question-option label {
+            color: #495057;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .logs-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            height: 65vh;
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #dee2e6;
+            flex-shrink: 0;
+        }
+
+        .logs-header h3 {
+            color: #333;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .clear-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .logs-container {
+            flex: 1;
+            overflow-y: auto;
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Custom scrollbar for logs container */
+        .logs-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .logs-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+
+        .log-entry {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            background: #f8f9ff;
+            border-radius: 8px;
+            animation: slideIn 0.3s ease;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .log-entry:hover {
+            background: #f0f2ff;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .log-entry.info {
+            border-left-color: #17a2b8;
+            background: #f0fdff;
+        }
+
+        .log-entry.success {
+            border-left-color: #28a745;
+            background: #f0fff4;
+        }
+
+        .log-entry.processing {
+            border-left-color: #ffc107;
+            background: #fffef0;
+        }
+
+        .log-entry.result {
+            border-left-color: #6f42c1;
+            background: #f8f5ff;
+        }
+
+        .log-entry.error {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .log-entry.warning {
+            border-left-color: #fd7e14;
+            background: #fff8f0;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .log-timestamp {
+            color: #6c757d;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .log-content {
+            color: #333;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            font-size: 0.92em;
+            word-wrap: break-word;
+        }
+
+        .screenshot-result {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .screenshot-info {
+            color: #495057;
+            font-size: 0.85em;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .ai-answer {
+            color: #212529;
+            font-size: 0.95em;
+            line-height: 1.4;
+            background: #ffffff;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 3px solid #6f42c1;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .empty-logs {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 40px 20px;
+            font-size: 1em;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .existing-screenshots {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            border-left: 4px solid #2196f3;
+            flex-shrink: 0;
+        }
+
+        .existing-screenshots h4 {
+            color: #1565c0;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.95em;
+        }
+
+        .screenshot-list {
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 0.85em;
+            color: #424242;
+        }
+
+        .screenshot-item {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(33, 150, 243, 0.2);
+        }
+
+        .screenshot-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Connection status */
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .connection-status.connected {
+            background: #28a745;
+            color: white;
+        }
+
+        .connection-status.disconnected {
+            background: #dc3545;
+            color: white;
+        }
+
+        /* Auto-monitoring indicator */
+        .auto-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #e8f5e8;
+            border: 1px solid #b8e6b8;
+            border-radius: 18px;
+            color: #2e7d32;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        /* Responsive design */
+        @media (max-width: 1024px) {
+            .container {
+                max-width: 95%;
+            }
+            
+            .logs-section {
+                height: 60vh;
+                min-height: 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+                margin: 10px;
+                min-height: 85vh;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .header p {
+                font-size: 0.9em;
+            }
+            
+            .status-section {
+                flex-direction: column;
+                align-items: center;
+                gap: 15px;
+            }
+            
+            .question-option {
+                display: block;
+                margin: 8px 0;
+            }
+            
+            .logs-section {
+                height: 55vh;
+                min-height: 350px;
+                padding: 15px;
+            }
+            
+            .log-entry {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+            
+            .log-content {
+                font-size: 0.9em;
+            }
+            
+            .ai-answer {
+                font-size: 0.9em;
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 12px;
+                margin: 5px;
+            }
+            
+            .logs-section {
+                height: 50vh;
+                min-height: 300px;
+            }
+            
+            .header h1 {
+                font-size: 1.6em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📸 AI Screenshot Monitor</h1>
+            <p>Monitoring otomatis screenshot baru dan menganalisis dengan AI.<br>
+            Ambil screenshot seperti biasa, sistem akan memproses secara otomatis!</p>
+        </div>
+
+        <!-- Status Section -->
+        <div class="status-section">
+            <div id="statusIndicator" class="status-indicator connecting">
+                <div class="status-pulse connecting"></div>
+                <span>🔄 Menghubungkan...</span>
+            </div>
+            <div class="auto-indicator">
+                <span>🤖</span>
+                <span>Auto Monitoring</span>
+            </div>
+        </div>
+
+        <!-- Question Type Selector -->
+        <div class="question-selector">
+            <h3>🤔 Jenis Pertanyaan untuk AI</h3>
+            <div class="question-option">
+                <input type="radio" id="singleAnswer" name="questionType" value="single" checked>
+                <label for="singleAnswer">📝 Jawaban tunggal</label>
+            </div>
+            <div class="question-option">
+                <input type="radio" id="multipleAnswers" name="questionType" value="multiple">
+                <label for="multipleAnswers">📋 Jawaban lebih dari satu</label>
+            </div>
+        </div>
+
+        <!-- Logs Section -->
+        <div class="logs-section">
+            <div class="logs-header">
+                <h3>
+                    📋 Monitor Logs
+                    <span id="logCounter" style="font-size: 0.75em; color: #6c757d;">(0 entries)</span>
+                </h3>
+                <button id="clearBtn" class="clear-btn">🗑️ Clear Logs</button>
+            </div>
+            <div class="logs-container" id="logsContainer">
+                <div class="empty-logs">
+                    🔄 Menginisialisasi monitoring otomatis...<br>
+                    Screenshot baru akan muncul di sini secara otomatis!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status Indicator -->
+    <div id="connectionStatus" class="connection-status disconnected">
+        🔴 Menghubungkan...
+    </div>
+
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // WebSocket connection
+        const socket = io();
+        
+        // Elements
+        const statusIndicator = document.getElementById('statusIndicator');
+        const logsContainer = document.getElementById('logsContainer');
+        const clearBtn = document.getElementById('clearBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const logCounter = document.getElementById('logCounter');
+        
+        let logCount = 0;
+        let isMonitoring = false;
+
+        // Function to update monitoring status
+        function updateMonitoringStatus(monitoring) {
+            isMonitoring = monitoring;
+            
+            if (monitoring) {
+                statusIndicator.className = 'status-indicator monitoring';
+                statusIndicator.innerHTML = `
+                    <div class="status-pulse"></div>
+                    <span>🔍 Monitoring Aktif</span>
+                `;
+            } else {
+                statusIndicator.className = 'status-indicator stopped';
+                statusIndicator.innerHTML = `
+                    <div class="status-pulse stopped"></div>
+                    <span>⏹️ Monitoring Tidak Aktif</span>
+                `;
+            }
+        }
+
+        // Function to update log counter
+        function updateLogCounter() {
+            logCounter.textContent = `(${logCount} entries)`;
+        }
+
+        // Function to add log entry
+        function addLog(message, type = 'info', timestamp = null, screenshotResult = null) {
+            logCount++;
+            
+            // Remove empty message if it exists
+            const emptyLogs = logsContainer.querySelector('.empty-logs');
+            if (emptyLogs) {
+                emptyLogs.remove();
+            }
+
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            
+            // Create timestamp
+            const logTimestamp = document.createElement('div');
+            logTimestamp.className = 'log-timestamp';
+            const timeStr = timestamp || new Date().toLocaleString('id-ID');
+            logTimestamp.innerHTML = `
+                <span>#${logCount}</span>
+                <span>•</span>
+                <span>${timeStr}</span>
+            `;
+            
+            // Create content
+            const logContent = document.createElement('div');
+            logContent.className = 'log-content';
+            logContent.textContent = message;
+            
+            logEntry.appendChild(logTimestamp);
+            logEntry.appendChild(logContent);
+            
+            // Add screenshot result if available
+            if (screenshotResult) {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'screenshot-result';
+                resultDiv.innerHTML = `
+                    <div class="screenshot-info">
+                        📸 File: ${screenshotResult.fileName}<br>
+                        ❓ Tipe: ${screenshotResult.question}
+                    </div>
+                    <div class="ai-answer">
+                        <strong>🤖 AI Response:</strong><br>
+                        ${screenshotResult.answer}
+                    </div>
+                `;
+                logEntry.appendChild(resultDiv);
+            }
+            
+            logsContainer.insertBefore(logEntry, logsContainer.firstChild);
+            
+            // Update counter
+            updateLogCounter();
+            
+            // Auto scroll to top
+            logsContainer.scrollTop = 0;
+        }
+
+        // Function to get selected question type
+        function getSelectedQuestionType() {
+            const selectedType = document.querySelector('input[name="questionType"]:checked');
+            return selectedType ? selectedType.value : 'single';
+        }
+
+        // Function to clear logs
+        function clearLogs() {
+            logsContainer.innerHTML = '<div class="empty-logs">📱 Logs sudah dihapus.<br>Screenshot baru akan muncul di sini!</div>';
+            logCount = 0;
+            updateLogCounter();
+        }
+
+        // Function to show existing screenshots
+        function showExistingScreenshots(screenshots) {
+            if (screenshots.length > 0) {
+                const existingDiv = document.createElement('div');
+                existingDiv.className = 'existing-screenshots';
+                existingDiv.innerHTML = `
+                    <h4>📁 Screenshot yang sudah ada (${screenshots.length} file)</h4>
+                    <div class="screenshot-list">
+                        ${screenshots.slice(0, 10).map(s => `
+                            <div class="screenshot-item">
+                                📸 ${s.fileName} - ${new Date(s.modified).toLocaleString('id-ID')}
+                            </div>
+                        `).join('')}
+                        ${screenshots.length > 10 ? `<div class="screenshot-item"><em>... dan ${screenshots.length - 10} file lainnya</em></div>` : ''}
+                    </div>
+                `;
+                
+                // Remove existing screenshots info if any
+                const existing = logsContainer.querySelector('.existing-screenshots');
+                if (existing) existing.remove();
+                
+                // Add to logs container
+                logsContainer.insertBefore(existingDiv, logsContainer.firstChild);
+            }
+        }
+
+        // Handle question type change
+        document.querySelectorAll('input[name="questionType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const questionType = this.value;
+                socket.emit('change-question-type', { questionType });
+                addLog(`📝 Mengubah jenis pertanyaan ke: ${questionType === 'multiple' ? 'Jawaban Multiple' : 'Jawaban Single'}`, 'info');
+            });
+        });
+
+        // WebSocket event listeners
+        socket.on('connect', () => {
+            console.log('Connected to server via WebSocket');
+            connectionStatus.className = 'connection-status connected';
+            connectionStatus.innerHTML = '🟢 Terhubung';
+            addLog('🌐 Terhubung ke server. Auto-monitoring akan dimulai...', 'success');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            connectionStatus.className = 'connection-status disconnected';
+            connectionStatus.innerHTML = '🔴 Terputus';
+            addLog('⚠️ Koneksi terputus dari server', 'error');
+            updateMonitoringStatus(false);
+        });
+
+        socket.on('reconnect', () => {
+            addLog('✅ Berhasil terhubung kembali ke server!', 'success');
+            connectionStatus.className = 'connection-status connected';
+            connectionStatus.innerHTML = '🟢 Terhubung';
+        });
+
+        socket.on('monitoring-status', (data) => {
+            updateMonitoringStatus(data.active);
+        });
+
+        socket.on('log', (data) => {
+            addLog(data.message, data.type, data.timestamp, data.screenshotResult);
+        });
+
+        socket.on('screenshot-result', (data) => {
+            addLog(
+                `✅ Screenshot berhasil dianalisis: ${data.fileName}`, 
+                'result', 
+                data.timestamp, 
+                data
+            );
+        });
+
+        socket.on('existing-screenshots', (screenshots) => {
+            showExistingScreenshots(screenshots);
+        });
+
+        // Event listeners
+        clearBtn.addEventListener('click', clearLogs);
+
+        // Initialize
+        updateMonitoringStatus(false);
+        updateLogCounter();
+
+        // Auto-hide connection status after connected
+        setTimeout(() => {
+            if (socket.connected) {
+                connectionStatus.style.opacity = '0.7';
+                setTimeout(() => {
+                    if (socket.connected) {
+                        connectionStatus.style.opacity = '0';
+                        setTimeout(() => {
+                            if (socket.connected) {
+                                connectionStatus.style.display = 'none';
+                            }
+                        }, 2000);
+                    }
+                }, 3000);
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
